@@ -46,7 +46,10 @@ final class PlaybackLauncher {
         );
         return FadeTransition(
           opacity: curved,
-          child: ScaleTransition(scale: Tween<double>(begin: 0.98, end: 1).animate(curved), child: child),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1).animate(curved),
+            child: child,
+          ),
         );
       },
     );
@@ -58,19 +61,34 @@ final class PlaybackLauncher {
     required String episodeSession,
     required WatchPageExtra extra,
   }) async {
-    final info = await getIt<WatchRepository>().fetchWatchInfo(
-      animeSession: animeSession,
-      episodeSession: episodeSession,
-      includeDownloads: false,
-    );
+    WatchInfo info;
+    try {
+      info = await getIt<WatchRepository>().fetchWatchInfo(
+        animeSession: animeSession,
+        episodeSession: episodeSession,
+        includeDownloads: false,
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load episode sources: $error')),
+      );
+      return;
+    }
     if (!context.mounted) return;
-    final sources = info.sources
-        .where((source) => isValidWatchSourceUrl(source.url))
-        .toList()
-      ..sort((left, right) => right.resolutionValue.compareTo(left.resolutionValue));
+    final sources =
+        info.sources
+            .where((source) => isValidWatchSourceUrl(source.url))
+            .toList()
+          ..sort(
+            (left, right) =>
+                right.resolutionValue.compareTo(left.resolutionValue),
+          );
     if (sources.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No playable sources found for this episode.')),
+        const SnackBar(
+          content: Text('No playable sources found for this episode.'),
+        ),
       );
       return;
     }
@@ -128,7 +146,9 @@ final class PlaybackLauncher {
     final downloads = info.downloads;
     if (downloads.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No download sources found for this episode.')),
+        const SnackBar(
+          content: Text('No download sources found for this episode.'),
+        ),
       );
       return;
     }
@@ -195,7 +215,8 @@ final class PlaybackLauncher {
         animeTitle: animeTitle,
         animePoster: animePoster,
         episode: info.episode,
-        episodeLabel: 'Episode ${info.episode.isEmpty ? episodeLabel : info.episode}',
+        episodeLabel:
+            'Episode ${info.episode.isEmpty ? episodeLabel : info.episode}',
         episodeSnapshot: snapshot,
         resolution: selectedDownload.resolution,
         fansub: selectedDownload.fansub,
@@ -211,9 +232,9 @@ final class PlaybackLauncher {
     );
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Added to downloads queue.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Added to downloads queue.')));
   }
 
   static Future<void> handleEpisodeDownloadAction({
@@ -227,7 +248,8 @@ final class PlaybackLauncher {
     required DownloadItem? downloadItem,
   }) async {
     final downloadsCubit = getIt<DownloadsCubit>();
-    if (downloadItem == null || downloadItem.status == DownloadStatus.cancelled) {
+    if (downloadItem == null ||
+        downloadItem.status == DownloadStatus.cancelled) {
       await showDownloadOptions(
         context: context,
         animeSession: animeSession,
@@ -248,11 +270,13 @@ final class PlaybackLauncher {
       case DownloadStatus.failed:
         await downloadsCubit.retry(downloadItem.id);
       case DownloadStatus.completed:
-        final message = await DownloadFileLauncher.openVideo(downloadItem.filePath);
+        final message = await DownloadFileLauncher.openVideo(
+          downloadItem.filePath,
+        );
         if (context.mounted && message != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       case DownloadStatus.queued:
         await downloadsCubit.cancel(downloadItem.id);
@@ -276,8 +300,13 @@ final class PlaybackLauncher {
     final normalizedTitle = animeTitle
         .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_');
-    final normalizedEpisode = episodeLabel.replaceAll(RegExp(r'[^0-9A-Za-z]+'), '_');
-    final resolutionSuffix = resolution.trim().isEmpty ? '' : '_${resolution.trim()}p';
+    final normalizedEpisode = episodeLabel.replaceAll(
+      RegExp(r'[^0-9A-Za-z]+'),
+      '_',
+    );
+    final resolutionSuffix = resolution.trim().isEmpty
+        ? ''
+        : '_${resolution.trim()}p';
     return '${normalizedTitle}_${normalizedEpisode}$resolutionSuffix.mp4';
   }
 }
