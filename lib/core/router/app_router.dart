@@ -92,6 +92,7 @@ class _AppShell extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         onDestinationSelected: (index) => navigationShell.goBranch(index),
         destinations: const [
           NavigationDestination(icon: Icon(AppIcons.home), label: 'Home'),

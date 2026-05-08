@@ -18,14 +18,18 @@ final class AppTheme {
   static const Color statusPaused = Color(0xFFFFCA6B);
   static const Color statusFailed = Color(0xFFFF6B7D);
   static const Color statusMuted = Color(0xFF9A9AAA);
-  static const double cardRadiusMedium = 16;
-  static const double cardRadiusLarge = 22;
+  static const double radiusSm = 8;
+  static const double radiusMd = 10;
+  static const double radiusLg = 12;
 
   static ThemeData dark() {
     final scheme = ColorScheme.fromSeed(
       seedColor: primary,
       brightness: Brightness.dark,
     ).copyWith(primary: primary, surface: surface, secondary: primarySoft);
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radiusLg),
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -40,7 +44,7 @@ final class AppTheme {
       cardTheme: CardThemeData(
         color: surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(cardRadiusMedium),
+          borderRadius: BorderRadius.circular(radiusLg),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -58,16 +62,41 @@ final class AppTheme {
         filled: true,
         fillColor: elevatedSurface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusLg),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusLg),
           borderSide: const BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusLg),
           borderSide: const BorderSide(color: primary),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(buttonShape),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(buttonShape),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(buttonShape),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(buttonShape),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(buttonShape),
         ),
       ),
       chipTheme: ChipThemeData(

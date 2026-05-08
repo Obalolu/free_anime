@@ -10,6 +10,7 @@ import 'package:free_anime/features/watch/data/watch_models.dart';
 import 'package:free_anime/features/watch/data/watch_repository.dart';
 import 'package:free_anime/features/watch/presentation/cubit/watch_cubit.dart';
 import 'package:free_anime/features/watch/presentation/player/watch_player_factories.dart';
+import 'package:free_anime/features/watch/presentation/view/fullscreen_player_page.dart';
 import 'package:free_anime/features/watch/presentation/view/watch_page.dart';
 
 final class PlaybackLauncher {
@@ -27,15 +28,14 @@ final class PlaybackLauncher {
       barrierDismissible: true,
       barrierLabel: 'Playback',
       barrierColor: Colors.black,
-      pageBuilder: (context, _, __) {
+      pageBuilder: (context, _, _) {
         return BlocProvider<WatchCubit>(
           create: (_) => getIt<WatchCubit>(),
-          child: WatchPage(
+          child: FullscreenPlayerPage(
             animeSession: animeSession,
             episodeSession: episodeSession,
             extra: extra,
             preferredSourceUrl: preferredSourceUrl,
-            fullscreenMode: true,
           ),
         );
       },
@@ -98,17 +98,16 @@ final class PlaybackLauncher {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Choose source'),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+          content: SizedBox(
+            width: 420,
+            height: 300,
             child: ListView.separated(
-              shrinkWrap: true,
               itemCount: sources.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final source = sources[index];
                 return ListTile(
                   title: Text(source.label),
-                  subtitle: Text(source.url),
                   onTap: () => Navigator.of(dialogContext).pop(source),
                 );
               },
@@ -307,6 +306,6 @@ final class PlaybackLauncher {
     final resolutionSuffix = resolution.trim().isEmpty
         ? ''
         : '_${resolution.trim()}p';
-    return '${normalizedTitle}_${normalizedEpisode}$resolutionSuffix.mp4';
+    return '${normalizedTitle}_$normalizedEpisode$resolutionSuffix.mp4';
   }
 }
