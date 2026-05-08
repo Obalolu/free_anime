@@ -65,8 +65,8 @@ class _SourcePickerDialogState extends State<SourcePickerDialog> {
 
           return SizedBox(
             width: 360,
+            height: 300,
             child: ListView.separated(
-              shrinkWrap: true,
               itemCount: sources.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {

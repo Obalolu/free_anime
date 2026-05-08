@@ -70,6 +70,7 @@ class _WatchPageState extends State<WatchPage> {
   bool _navigatingToNext = false;
   bool _showDownloads = false;
   int _sourceLoadGeneration = 0;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -86,6 +87,7 @@ class _WatchPageState extends State<WatchPage> {
 
   @override
   void dispose() {
+    _disposed = true;
     unawaited(_persistProgress());
     _playerController?.dispose(forceDispose: true);
     super.dispose();
@@ -165,6 +167,7 @@ class _WatchPageState extends State<WatchPage> {
   }
 
   void _onPlayerEvent(BetterPlayerEvent event) {
+    if (_disposed) return;
     if (!mounted) return;
     _syncPlayerSnapshot();
 
@@ -324,7 +327,7 @@ class _WatchPageState extends State<WatchPage> {
             padding: const EdgeInsets.fromLTRB(8, 10, 8, 32),
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: Stack(
@@ -680,7 +683,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.elevatedSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.border),
       ),
       child: Center(
@@ -754,12 +757,12 @@ class _DownloadOptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(color: AppTheme.border),
         ),
         child: Row(
@@ -804,7 +807,7 @@ class _OfflineDownloadBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.statusComplete.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
           color: AppTheme.statusComplete.withValues(alpha: 0.32),
         ),
@@ -856,7 +859,7 @@ class _EpisodeInfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.border),
       ),
       child: Column(

@@ -68,7 +68,7 @@ class _DownloadsHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF241726), Color(0xFF131820)],
         ),
-        borderRadius: BorderRadius.circular(AppTheme.cardRadiusLarge),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.borderStrong),
       ),
       child: Column(
@@ -136,7 +136,7 @@ class _MetricPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: tone.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppTheme.cardRadiusMedium),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: tone.withValues(alpha: 0.35)),
       ),
       child: Column(
@@ -179,13 +179,13 @@ class _AnimeGroupCardState extends State<_AnimeGroupCard> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceHigh,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadiusLarge),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: AppTheme.borderStrong),
       ),
       child: Column(
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(AppTheme.cardRadiusLarge),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -275,7 +275,7 @@ class _GroupArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final poster = group.poster.trim();
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTheme.cardRadiusMedium),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: SizedBox(
         width: 76,
         height: 104,
@@ -331,7 +331,7 @@ class _EpisodeDownloadRow extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadiusMedium),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.border),
       ),
       child: Column(
@@ -512,7 +512,7 @@ class _EmptyDownloadsView extends StatelessWidget {
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: AppTheme.surfaceHigh,
-            borderRadius: BorderRadius.circular(AppTheme.cardRadiusLarge),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(color: AppTheme.borderStrong),
           ),
           child: Column(

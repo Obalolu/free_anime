@@ -13,9 +13,18 @@ final class WatchPlayerConfigurationFactory {
     required void Function(BetterPlayerEvent event) onEvent,
     required Widget Function(BuildContext context, String? errorMessage)
     errorBuilder,
+    Widget Function(
+      BetterPlayerController controller,
+      Function(bool) onPlayerVisibilityChanged,
+    )?
+    customControlsBuilder,
+    bool enablePip = false,
     List<BetterPlayerOverflowMenuItem> overflowMenuCustomItems =
         const <BetterPlayerOverflowMenuItem>[],
   }) {
+    final playerTheme = customControlsBuilder == null
+        ? BetterPlayerTheme.material
+        : BetterPlayerTheme.custom;
     return BetterPlayerConfiguration(
       autoPlay: true,
       looping: false,
@@ -32,9 +41,10 @@ final class WatchPlayerConfigurationFactory {
       errorBuilder: errorBuilder,
       eventListener: onEvent,
       controlsConfiguration: BetterPlayerControlsConfiguration(
-        playerTheme: BetterPlayerTheme.material,
+        playerTheme: playerTheme,
+        customControlsBuilder: customControlsBuilder,
         showControlsOnInitialize: true,
-        enablePip: false,
+        enablePip: enablePip,
         enableSubtitles: true,
         enableQualities: true,
         enableAudioTracks: true,

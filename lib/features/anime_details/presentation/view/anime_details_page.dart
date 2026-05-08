@@ -18,6 +18,8 @@ import 'package:free_anime/features/watch/data/watch_models.dart';
 import 'package:free_anime/features/watch/data/watch_repository.dart';
 import 'package:free_anime/features/watch/presentation/view/playback_launcher.dart';
 import 'package:free_anime/features/watch/presentation/view/watch_page.dart';
+import 'package:free_anime/features/watch_history/data/watch_history_item.dart';
+import 'package:free_anime/features/watch_history/presentation/cubit/watch_history_cubit.dart';
 import 'package:free_anime/features/watchlist/data/watchlist_item.dart';
 import 'package:free_anime/features/watchlist/presentation/cubit/watchlist_cubit.dart';
 
@@ -75,12 +77,9 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
                       _ActionRow(
                         details: details,
                         session: widget.session,
-                        onViewEpisodes: () =>
-                            setState(() => _selectedDetailsTab = 0),
+                        releases: state.releases,
                       ),
                       const SizedBox(height: 20),
-                      _SectionTitle(title: 'Synopsis'),
-                      const SizedBox(height: 8),
                       Text(
                         details.synopsis,
                         maxLines: _expandedSynopsis ? null : 4,
@@ -99,7 +98,7 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
                         ),
                       ),
                       if (_expandedSynopsis) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         _MetaWrap(details: details),
                         const SizedBox(height: 16),
                         _InfoTable(details: details),
@@ -117,13 +116,14 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
                           Wrap(
                             spacing: 16,
                             runSpacing: 4,
+                            alignment: WrapAlignment.start,
                             children: details.externalLinks
                                 .map(_buildExternalLinkTile)
                                 .toList(),
                           ),
                         ],
                       ],
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                       _AnimeDetailsTabs(
                         details: details,
                         releases: state.releases,
@@ -146,35 +146,32 @@ class _AnimeDetailsPageState extends State<AnimeDetailsPage> {
   Widget _buildExternalLinkTile(AnimeExternalLink link) {
     final context = this.context;
     final name = link.name.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton(
-        onPressed: () async {
-          final uri = Uri.tryParse(link.url);
-          if (uri == null) return;
-          final launched = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
+    return TextButton(
+      onPressed: () async {
+        final uri = Uri.tryParse(link.url);
+        if (uri == null) return;
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open ${name.isEmpty ? 'link' : name}'),
+            ),
           );
-          if (!launched && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Could not open ${name.isEmpty ? 'link' : name}'),
-              ),
-            );
-          }
-        },
-        style: TextButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: Text(
-          name.isEmpty ? link.url : name,
-          style: const TextStyle(
-            decoration: TextDecoration.underline,
-            decorationColor: AppTheme.primary,
-          ),
+        }
+      },
+      style: TextButton.styleFrom(
+        foregroundColor: AppTheme.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        name.isEmpty ? link.url : name,
+        style: const TextStyle(
+          decoration: TextDecoration.underline,
+          decorationColor: AppTheme.primary,
         ),
       ),
     );
@@ -305,14 +302,14 @@ class _HeroHeaderState extends State<_HeroHeader> {
                         onPlay: _playPreview,
                       ),
               ),
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 8,
-                child: IconButton.filledTonal(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-              ),
+              // Positioned(
+              //   top: MediaQuery.of(context).padding.top,
+              //   left: 8,
+              //   child: IconButton.filledTonal(
+              //     onPressed: () => context.pop(),
+              //     icon: const Icon(Icons.arrow_back_rounded),
+              //   ),
+              // ),
             ],
           ),
           Padding(
@@ -321,7 +318,7 @@ class _HeroHeaderState extends State<_HeroHeader> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                   child: SizedBox(
                     width: 104,
                     height: 148,
@@ -548,42 +545,166 @@ class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.details,
     required this.session,
-    required this.onViewEpisodes,
+    required this.releases,
   });
 
   final AnimeDetails details;
   final String session;
-  final VoidCallback onViewEpisodes;
+  final List<AnimeEpisodeRelease> releases;
+
+  bool get _isMovie => details.type.toLowerCase() == 'movie';
 
   @override
   Widget build(BuildContext context) {
+    final historyState = context.watch<WatchHistoryCubit>().state;
+    final relevant = historyState.items
+        .where((h) => h.animeSession == session)
+        .toList();
+
+    final resumable = relevant.where((h) => h.canResume).toList();
+    resumable.sort((a, b) => b.progress.compareTo(a.progress));
+
+    String label = 'Play';
+    AnimeEpisodeRelease? targetRelease;
+    if (resumable.isNotEmpty) {
+      label = 'Resume';
+      final resumeItem = resumable.first;
+      targetRelease = releases.cast<AnimeEpisodeRelease?>().firstWhere(
+        (r) => r?.session == resumeItem.episodeSession,
+        orElse: () => null,
+      );
+    }
+    if (targetRelease == null && releases.isNotEmpty) {
+      label = 'Play';
+      targetRelease = releases.first;
+    }
+
     final isInWatchlist = context.select<WatchlistCubit, bool>(
       (cubit) => cubit.state.items.any((e) => e.session == session),
     );
-    return Row(
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: onViewEpisodes,
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('View Episodes'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        OutlinedButton.icon(
-          onPressed: () async {
-            await context.read<WatchlistCubit>().toggle(
-              WatchlistItem(
-                session: session,
-                title: details.title,
-                poster: details.image,
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () {
+                  final target = targetRelease;
+                  if (target == null) return;
+                  _playRelease(context, target);
+                },
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: Text(label),
               ),
+            ),
+            const SizedBox(width: 10),
+            IconButton(
+              onPressed: () async {
+                await context.read<WatchlistCubit>().toggle(
+                  WatchlistItem(
+                    session: session,
+                    title: details.title,
+                    poster: details.image,
+                  ),
+                );
+              },
+              tooltip: isInWatchlist ? 'In Watchlist' : 'Add to Watchlist',
+              icon: Icon(
+                isInWatchlist
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                    color: isInWatchlist ? AppTheme.primary : null,
+                    size: 32,
+              ),
+            ),
+          ],
+        ),
+        if (_isMovie && targetRelease != null) ...[
+          const SizedBox(height: 12),
+          _MovieDownloadButton(
+            animeSession: session,
+            release: targetRelease,
+            animeTitle: details.title,
+            animePoster: details.image,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _playRelease(
+    BuildContext context,
+    AnimeEpisodeRelease release,
+  ) async {
+    final episodeLabel = release.episode.trim().isEmpty
+        ? '?'
+        : release.episode.trim();
+    final title = release.title.trim().isEmpty
+        ? 'Episode $episodeLabel'
+        : release.title.trim();
+    await PlaybackLauncher.chooseSourceAndPlay(
+      context: context,
+      animeSession: session,
+      episodeSession: release.session,
+      extra: WatchPageExtra(
+        episode: episodeLabel,
+        title: title,
+        snapshot: release.snapshot,
+        duration: release.duration,
+        poster: details.image.isEmpty ? release.snapshot : details.image,
+      ),
+    );
+  }
+}
+
+class _MovieDownloadButton extends StatelessWidget {
+  const _MovieDownloadButton({
+    required this.animeSession,
+    required this.release,
+    required this.animeTitle,
+    required this.animePoster,
+  });
+
+  final String animeSession;
+  final AnimeEpisodeRelease release;
+  final String animeTitle;
+  final String animePoster;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DownloadsCubit, DownloadsState>(
+      bloc: getIt<DownloadsCubit>(),
+      builder: (context, state) {
+        final downloadItem =
+            state.latestForEpisode(animeSession, release.session);
+        return FilledButton.tonal(
+          onPressed: () async {
+            final episodeLabel = release.episode.trim().isEmpty
+                ? 'Movie'
+                : release.episode.trim();
+            await PlaybackLauncher.handleEpisodeDownloadAction(
+              context: context,
+              animeSession: animeSession,
+              episodeSession: release.session,
+              animeTitle: animeTitle,
+              animePoster: animePoster,
+              episodeLabel: episodeLabel,
+              snapshot: release.snapshot,
+              downloadItem: downloadItem,
             );
           },
-          icon: Icon(isInWatchlist ? Icons.check_rounded : Icons.add_rounded),
-          label: Text(isInWatchlist ? 'In Watchlist' : 'Watchlist'),
-        ),
-      ],
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.download_rounded),
+              SizedBox(width: 8),
+              Text('Download'),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -717,35 +838,52 @@ class _AnimeDetailsTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMovie = details.type.toLowerCase() == 'movie';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _DetailsTabBar(selectedIndex: selectedIndex, onSelected: onSelected),
-        const SizedBox(height: 16),
-        switch (selectedIndex) {
-          0 => _EpisodesTab(
-            releases: releases,
-            animeSession: animeSession,
-            animeTitle: details.title,
-            animePoster: details.image,
-          ),
-          1 => _RelatedTab(details: details),
-          _ => _RecommendationsTab(details: details),
-        },
+        _DetailsTabBar(
+          selectedIndex: selectedIndex,
+          onSelected: onSelected,
+          isMovie: isMovie,
+        ),
+        if (isMovie)
+          switch (selectedIndex) {
+            0 => _RelatedTab(details: details),
+            _ => _RecommendationsTab(details: details),
+          }
+        else
+          switch (selectedIndex) {
+            0 => _EpisodesTab(
+              releases: releases,
+              animeSession: animeSession,
+              animeTitle: details.title,
+              animePoster: details.image,
+            ),
+            1 => _RelatedTab(details: details),
+            _ => _RecommendationsTab(details: details),
+          },
       ],
     );
   }
 }
 
 class _DetailsTabBar extends StatelessWidget {
-  const _DetailsTabBar({required this.selectedIndex, required this.onSelected});
+  const _DetailsTabBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.isMovie,
+  });
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final bool isMovie;
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['Episodes', 'Related', 'Recommendations'];
+    final tabs = isMovie
+        ? const ['Related', 'Recommendations']
+        : const ['Episodes', 'Related', 'Recommendations'];
     return Container(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFF292932))),
@@ -757,7 +895,7 @@ class _DetailsTabBar extends StatelessWidget {
               child: InkWell(
                 onTap: () => onSelected(index),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -771,6 +909,7 @@ class _DetailsTabBar extends StatelessWidget {
                               ? FontWeight.w800
                               : FontWeight.w600,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 12),
                       AnimatedContainer(
@@ -811,17 +950,24 @@ class _EpisodesTab extends StatelessWidget {
     return BlocBuilder<DownloadsCubit, DownloadsState>(
       bloc: getIt<DownloadsCubit>(),
       builder: (context, downloadsState) {
+        final historyState = context.watch<WatchHistoryCubit>().state;
         if (releases.isEmpty) {
           return const _EmptyTab(message: 'No episodes found.');
         }
 
         return ListView.separated(
+          padding: const EdgeInsets.only(top: 12),
+          primary: false,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: releases.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final release = releases[index];
+            final historyItem = historyState.items.cast<WatchHistoryItem?>().firstWhere(
+              (h) => h?.episodeSession == release.session,
+              orElse: () => null,
+            );
             return _EpisodeTile(
               release: release,
               animeSession: animeSession,
@@ -831,6 +977,7 @@ class _EpisodesTab extends StatelessWidget {
                 animeSession,
                 release.session,
               ),
+              historyItem: historyItem,
             );
           },
         );
@@ -846,6 +993,7 @@ class _EpisodeTile extends StatelessWidget {
     required this.animeTitle,
     required this.animePoster,
     this.downloadItem,
+    this.historyItem,
   });
 
   final AnimeEpisodeRelease release;
@@ -853,6 +1001,7 @@ class _EpisodeTile extends StatelessWidget {
   final String animeTitle;
   final String animePoster;
   final DownloadItem? downloadItem;
+  final WatchHistoryItem? historyItem;
 
   @override
   Widget build(BuildContext context) {
@@ -862,89 +1011,113 @@ class _EpisodeTile extends StatelessWidget {
     final title = release.title.trim().isEmpty
         ? 'Episode $episodeLabel'
         : release.title.trim();
-    final metadata = [
-      if (release.duration.trim().isNotEmpty) release.duration.trim(),
-      if (release.audio.trim().isNotEmpty) release.audio.trim(),
-    ].join(' • ');
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: release.session.isEmpty
-            ? null
-            : () => _handleTap(context, episodeLabel, title),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF191922),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF292932)),
-          ),
+    final duration = release.duration.trim();
+    final durationLabel = duration.isEmpty ? 'Duration unknown' : duration;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      onTap: release.session.isEmpty
+          ? null
+          : () => _handleTap(context, episodeLabel, title),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF191922),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(color: const Color(0xFF292932)),
+        ),
+        child: SizedBox(
+          height: 84,
           child: Row(
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(14),
+                  left: Radius.circular(AppTheme.radiusLg),
                 ),
                 child: SizedBox(
-                  width: 124,
-                  height: 72,
-                  child: release.snapshot.isEmpty
-                      ? Container(color: const Color(0xFF22222D))
-                      : CachedNetworkImage(
-                          imageUrl: release.snapshot,
-                          fit: BoxFit.cover,
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  width: 126,
+                  height: double.infinity,
+                  child: Stack(
                     children: [
-                      Text(
-                        'Episode $episodeLabel',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                      release.snapshot.isEmpty
+                          ? Container(color: const Color(0xFF22222D))
+                          : CachedNetworkImage(
+                              imageUrl: release.snapshot,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                      if (historyItem != null && historyItem!.progress > 0)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: historyItem!.progress,
+                              minHeight: 3,
+                              backgroundColor: Colors.transparent,
+                              valueColor: const AlwaysStoppedAnimation(AppTheme.primary),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (metadata.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          metadata,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
-                      if (downloadItem != null) ...[
-                        const SizedBox(height: 8),
-                        _EpisodeDownloadStateBadge(
-                          status: downloadItem!.status,
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: _EpisodeDownloadActionButton(
-                  downloadItem: downloadItem,
-                  onPressed: () => _handleDownloadAction(
-                    context,
-                    episodeLabel: episodeLabel,
-                    title: title,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 14,
+                                color: AppTheme.mutedText,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  durationLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: AppTheme.mutedText),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _EpisodeDownloadActionButton(
+                      downloadItem: downloadItem,
+                      onPressed: () => _handleDownloadAction(
+                        context,
+                        episodeLabel: episodeLabel,
+                        title: title,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
           ),
         ),
-      ),
     );
   }
 
@@ -1017,9 +1190,9 @@ class _EpisodeTile extends StatelessWidget {
       );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not load downloads: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load downloads: $error')),
+      );
       return;
     }
 
@@ -1075,9 +1248,9 @@ class _EpisodeTile extends StatelessWidget {
           : await getIt<WatchRepository>().resolveDownloadUrl(download.pahe);
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not resolve download: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not resolve download: $error')),
+      );
       return;
     }
 
@@ -1191,42 +1364,9 @@ class _EpisodeDownloadActionButton extends StatelessWidget {
       icon: Stack(
         alignment: Alignment.center,
         children: [
-          if (overlay != null) overlay,
+          ?overlay,
           Icon(icon, color: color),
         ],
-      ),
-    );
-  }
-}
-
-class _EpisodeDownloadStateBadge extends StatelessWidget {
-  const _EpisodeDownloadStateBadge({required this.status});
-
-  final DownloadStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      DownloadStatus.completed => AppTheme.statusComplete,
-      DownloadStatus.downloading => AppTheme.statusActive,
-      DownloadStatus.queued => AppTheme.primarySoft,
-      DownloadStatus.paused => AppTheme.statusPaused,
-      DownloadStatus.failed => AppTheme.statusFailed,
-      DownloadStatus.cancelled => AppTheme.statusMuted,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.32)),
-      ),
-      child: Text(
-        status == DownloadStatus.completed ? 'Offline ready' : status.name,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: Colors.white),
       ),
     );
   }
@@ -1301,7 +1441,7 @@ class _EmptyTab extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF191922),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(color: const Color(0xFF292932)),
       ),
       child: Text(
@@ -1380,7 +1520,7 @@ class _PosterCard extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 child: image.isEmpty
                     ? Container(color: const Color(0xFF22222D))
                     : CachedNetworkImage(
